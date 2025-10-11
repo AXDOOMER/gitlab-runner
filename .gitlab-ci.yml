@@ -1,46 +1,63 @@
+image: golang:latest
+
 stages:
   - build
-  - qa
   - test
-  - coverage
-  - package
-  - release
-  - test kubernetes integration
-  - postrelease
-  - deploy
-  - rebase
-  - docs
+  - quality
+  - security
 
-include:
-  - local: /.gitlab/ci/_project_canonical.gitlab-ci.yml
-    rules:
-      - if: $CI_PROJECT_PATH == "gitlab-org/gitlab-runner" || $CI_PROJECT_PATH == "gitlab-org/security/gitlab-runner"
-        when: always
-  - local: /.gitlab/ci/_project_fork.gitlab-ci.yml
-    rules:
-      - if: $CI_PROJECT_PATH == "gitlab-org/gitlab-runner" || $CI_PROJECT_PATH == "gitlab-org/security/gitlab-runner"
-        when: never
-      - if: $CI_PROJECT_PATH
-  - local: /.gitlab/ci/_common.gitlab-ci.yml
-  - local: /.gitlab/ci/_rules.gitlab-ci.yml
-  - local: /.gitlab/ci/_kubernetes.gitlab-ci.yml
-  - local: /.gitlab/ci/build.gitlab-ci.yml
-  - local: /.gitlab/ci/qa.gitlab-ci.yml
-  - local: /.gitlab/ci/test.gitlab-ci.yml
-  - local: /.gitlab/ci/test-kubernetes-integration.gitlab-ci.yml
-  - local: /.gitlab/ci/coverage.gitlab-ci.yml
-  - local: /.gitlab/ci/package.gitlab-ci.yml
-  - local: /.gitlab/ci/release.gitlab-ci.yml
-  - local: /.gitlab/ci/postrelease.gitlab-ci.yml
-  - local: /.gitlab/ci/deploy.gitlab-ci.yml
-  - local: /.gitlab/ci/docs.gitlab-ci.yml
-  - local: /.gitlab/ci/rebase.gitlab-ci.yml
-  - local: /.gitlab/ci/hosted-runners-bridge.gitlab-ci.yml
-  - component: ${CI_SERVER_FQDN}/gitlab-org/components/danger-review/danger-review@2.0.0
-    inputs:
-      job_stage: qa
-    rules:
-      - if: '$CI_SERVER_HOST == "gitlab.com" && ($CI_MERGE_REQUEST_SOURCE_PROJECT_PATH == "gitlab-org/gitlab-runner" || $CI_MERGE_REQUEST_SOURCE_PROJECT_PATH == "gitlab-org/security/gitlab-runner" || $CI_MERGE_REQUEST_SOURCE_PROJECT_PATH == "gitlab-community/gitlab-org/gitlab-runner")'
-  - project: gitlab-com/gl-security/security-operations/infrastructure-security-public/oidc-modules
-    ref: 3.3.0
-    file: templates/gcp_auth.yaml
+variables:
+  GOPATH: "$HOME/go"
+  BINARY_NAME: "app" # default binary name, should be detected automatically
+
+cache:
+  paths:
+    - "$GOPATH/pkg/mod"
+
+build:
+  stage: build
+  script:
+    - apt-get update
+    - apt-get -y install libc6-dev libgl1-mesa-dev libxcursor-dev libxi-dev libxinerama-dev libxrandr-dev libxxf86vm-dev libasound2-dev pkg-config # specific to ebiten
+    - go mod download
+    - go build -o $BINARY_NAME ./cmd/*
+  artifacts:
+    paths:
+      - $BINARY_NAME
+    expire_in: 1 week
+    name: "${CI_PROJECT_NAME}-${CI_COMMIT_REF_NAME}"
+  only:
+    - main
+    - merge_requests
+
+test:
+  stage: test
+  script:
+    - apt-get update
+    - apt-get -y install libc6-dev libgl1-mesa-dev libxcursor-dev libxi-dev libxinerama-dev libxrandr-dev libxxf86vm-dev libasound2-dev pkg-config # specific to ebiten
+    - apt-get -y install xorg-dev libglu1-mesa libgl1-mesa-dev xvfb libxinerama1 libxcursor1
+    - export DISPLAY=:99
+    - Xvfb :99 -screen 0 1400x900x24 +extension RANDR &
+    - sleep 3 # giving it the time to start
+    - go test -v ./...
+
+staticcheck:
+  stage: quality
+  image: golang:latest
+  script:
+    - export PATH=$GOPATH/bin:$PATH
+    - apt-get update
+    - apt-get -y install libc6-dev libgl1-mesa-dev libxcursor-dev libxi-dev libxinerama-dev libxrandr-dev libxxf86vm-dev libasound2-dev pkg-config # specific to ebiten
+    - go install honnef.co/go/tools/cmd/staticcheck@latest
+    - staticcheck ./...
+  allow_failure: true
+
+trivy:
+  stage: security
+  image:
+    name: aquasec/trivy:latest
+    entrypoint: [""]
+  script:
+    - trivy fs --exit-code 0 --no-progress --severity HIGH,CRITICAL .
+  allow_failure: true
+
