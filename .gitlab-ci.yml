@@ -18,14 +18,31 @@ build:
   stage: build
   script:
     - apt-get update
-    - apt-get -y install libc6-dev libgl1-mesa-dev libxcursor-dev libxi-dev libxinerama-dev libxrandr-dev libxxf86vm-dev libasound2-dev pkg-config # specific to ebiten
-    - go mod download
-    - go build -o $BINARY_NAME ./cmd/*
+    #- apt-get -y install libc6-dev libgl1-mesa-dev libxcursor-dev libxi-dev libxinerama-dev libxrandr-dev libxxf86vm-dev libasound2-dev pkg-config # specific to ebiten
+    #- go mod download
+    #- go build -o $BINARY_NAME ./cmd/*
+    - make -j$(($(nproc) * 2)) helper-bin helper-bin-fips runner-bin runner-bin-fips
+    - |
+      if [[ "$CI_SERVER_HOST" == "gitlab.com" &&
+            ("$CI_PROJECT_PATH" == "gitlab-org/gitlab-runner" ||
+             "$CI_PROJECT_PATH" == "gitlab-org/security/gitlab-runner") &&
+            -n "$CI_COMMIT_TAG" ]]; then
+        echo "Signing binaries..."
+        scripts/sign-windows-binaries
+        scripts/sign-macos-binaries
+      else
+        echo "Not signing binaries"
+      fi
   artifacts:
     paths:
-      - $BINARY_NAME
-    expire_in: 1 week
-    name: "${CI_PROJECT_NAME}-${CI_COMMIT_REF_NAME}"
+      - out/binaries/gitlab-runner*
+    expire_in: 7d
+
+  #artifacts:
+  #  paths:
+  #    - $BINARY_NAME
+  #  expire_in: 1 week
+  #  name: "${CI_PROJECT_NAME}-${CI_COMMIT_REF_NAME}"
   only:
     - main
     - merge_requests
