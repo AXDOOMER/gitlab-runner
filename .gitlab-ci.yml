@@ -16,6 +16,8 @@ cache:
 
 build:
   stage: build
+  tags:
+  - saas-linux-medium-amd64
   script:
     - apt-get update
     #- apt-get -y install libc6-dev libgl1-mesa-dev libxcursor-dev libxi-dev libxinerama-dev libxrandr-dev libxxf86vm-dev libasound2-dev pkg-config # specific to ebiten
