@@ -24,7 +24,6 @@ jobs:
 
     - name: Build
       run: |
-        apt-get update
         make -j$(nproc) helper-bin helper-bin-fips runner-bin runner-bin-fips
         if [[ "$GITHUB_SERVER_URL" == "https://github.com" &&
               ("$GITHUB_REPOSITORY" == "gitlab-org/gitlab-runner" ||
