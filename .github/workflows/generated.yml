@@ -2,9 +2,9 @@ name: Build and Test
 
 on:
   push:
-    branches: [ main ]
+    branches: [ never ]
   pull_request:
-    branches: [ main ]
+    branches: [ never ]
 
 env:
   GOPATH: ${{ github.workspace }}/go
