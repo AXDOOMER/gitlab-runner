@@ -1,4 +1,4 @@
-# GitLab Runner 
+# GitLab Runner
 
 This is the repository of the official GitLab Runner written in Go.
 It executes tests and sends the results to GitLab.
