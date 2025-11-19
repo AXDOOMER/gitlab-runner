@@ -79,6 +79,9 @@ GITLAB_CHANGELOG = $(localBin)/gitlab-changelog-$(GITLAB_CHANGELOG_VERSION)
 .PHONY: all
 all: deps runner-and-helper-bin
 
+.PHONY: build
+build: helper-bin helper-bin-fips runner-bin runner-bin-fips
+
 include Makefile.runner_helper.mk
 include Makefile.build.mk
 
